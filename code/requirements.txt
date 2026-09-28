@@ -1,0 +1,8 @@
+torch
+numpy
+Pillow
+colour-science
+scipy
+scikit-image
+pandas
+matplotlib

@@ -1,0 +1,10 @@
+# Exact environment used for the frozen 2026-07-20 pilot on Apple Silicon.
+# Python 3.11.8; macOS 15.0 arm64; MPS backend.
+torch==2.4.1
+numpy==1.26.4
+Pillow==12.3.0
+colour-science==0.4.6
+scipy==1.17.1
+scikit-image==0.22.0
+pandas==2.1.4
+matplotlib==3.8.0
