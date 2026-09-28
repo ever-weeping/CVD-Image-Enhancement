@@ -1,0 +1,25 @@
+# macOS and Python caches
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Local environments and editor state
+.venv/
+venv/
+.idea/
+.vscode/
+
+# Datasets and generated experiment artifacts
+val2017/
+runs/
+artifacts/
+*.pt
+*.pth
+*.ckpt
+*.docx
+
+# Temporary files
+*.tmp
+*.log
