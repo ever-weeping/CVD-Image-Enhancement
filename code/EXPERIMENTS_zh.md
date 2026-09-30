@@ -86,3 +86,29 @@
 
 详细英文说明见 `EXPERIMENTS.md`。论文当前只把这些结果作为可复现先导
 证据，不宣称 SOTA、临床个体化、真实观察者获益或 Pareto 前沿优势。
+
+## 服务器实时进度与 TensorBoard
+
+更新代码后，在训练环境运行 `python -m pip install -r requirements.txt`。
+训练默认显示 tqdm 步数、速度、预计剩余时间和当前 loss；评价在交互终端
+显示逐条件 batch 进度。`--no-progress` 可关闭进度条，原有
+`--log-every` 文本日志仍保留。建议使用 `python -u` 配合 `tee` 保存日志。
+
+TensorBoard 默认逐步记录总损失、结构/保真/CVD/解耦损失及学习率，
+按模型与随机种子分别保存在 `<运行目录>/tensorboard/`，约每 10 秒刷新。
+可用 `--no-tensorboard` 关闭。每次实验使用不同的 `--out` 目录，避免曲线混合。
+
+服务器（在代码目录、已激活训练环境）：
+
+```bash
+tensorboard --logdir runs --host 127.0.0.1 --port 6006
+```
+
+本机另开终端建立 SSH 转发：
+
+```bash
+ssh -N -L 6006:127.0.0.1:6006 -p 56887 mahai@101.7.187.88
+```
+
+随后浏览器打开 http://localhost:6006。旧实验不会自动出现曲线，
+需要更新后重新启动训练。TensorBoard 不提供断线保活，长训练仍可在 tmux 中运行。

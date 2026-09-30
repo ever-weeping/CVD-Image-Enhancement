@@ -16,6 +16,7 @@ import random
 import subprocess
 import time
 from collections import defaultdict
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Sequence
 
@@ -26,6 +27,8 @@ from scipy.stats import wilcoxon
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.tensorboard import SummaryWriter
+from tqdm.auto import tqdm
 
 from cvd_metrics import batch_metrics, confusion_mask, differentiable_losses
 from cvd_models import VARIANTS, Variant, feature_decouple_loss, make_model, parameter_count
@@ -207,56 +210,69 @@ def train_model(
     iterator = iter(loader)
     history: list[dict] = []
     started = time.perf_counter()
-    for step in range(1, args.steps + 1):
-        try:
-            inp, _ = next(iterator)
-        except StopIteration:
-            iterator = iter(loader)
-            inp, _ = next(iterator)
-        inp = inp.to(device)
-        axis, severity = schedule[condition_rng.randrange(len(schedule))]
-        mask = confusion_mask(inp, axis, severity, args.train_simulator).detach()
-        condition = condition_vector(axis, severity, inp.shape[0], dtype=inp.dtype, device=device)
-        out, features, _ = model(inp, mask, condition)
-        decouple = feature_decouple_loss(features) if variant.use_decouple else inp.new_tensor(0.0)
-        loss, logs = differentiable_losses(
-            inp,
-            out,
-            mask,
-            axis,
-            severity,
-            args.train_simulator,
-            decouple,
-            w_structure=args.w_structure,
-            w_fidelity=args.w_fidelity,
-            w_cvd=args.w_cvd,
-            w_decouple=args.w_decouple,
-        )
-        if not torch.isfinite(loss):
-            raise FloatingPointError(
-                f"Non-finite loss at seed={seed}, variant={variant.name}, step={step}: {logs}"
+    with ExitStack() as stack:
+        writer = None
+        if not args.no_tensorboard:
+            log_dir = args.out / "tensorboard" / f"{variant.name}_seed{seed}"
+            writer = stack.enter_context(SummaryWriter(log_dir=str(log_dir), flush_secs=10))
+        progress = stack.enter_context(tqdm(
+            range(1, args.steps + 1), desc=f"Train {variant.name} seed={seed}",
+            unit="step", dynamic_ncols=True, disable=args.no_progress,
+        ))
+        for step in progress:
+            try:
+                inp, _ = next(iterator)
+            except StopIteration:
+                iterator = iter(loader)
+                inp, _ = next(iterator)
+            inp = inp.to(device)
+            axis, severity = schedule[condition_rng.randrange(len(schedule))]
+            mask = confusion_mask(inp, axis, severity, args.train_simulator).detach()
+            condition = condition_vector(axis, severity, inp.shape[0], dtype=inp.dtype, device=device)
+            out, features, _ = model(inp, mask, condition)
+            decouple = feature_decouple_loss(features) if variant.use_decouple else inp.new_tensor(0.0)
+            loss, logs = differentiable_losses(
+                inp,
+                out,
+                mask,
+                axis,
+                severity,
+                args.train_simulator,
+                decouple,
+                w_structure=args.w_structure,
+                w_fidelity=args.w_fidelity,
+                w_cvd=args.w_cvd,
+                w_decouple=args.w_decouple,
             )
-        optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        non_finite_gradients = [
-            name for name, parameter in model.named_parameters()
-            if parameter.grad is not None and not torch.isfinite(parameter.grad).all()
-        ]
-        if non_finite_gradients:
-            raise FloatingPointError(
-                f"Non-finite gradients at seed={seed}, variant={variant.name}, step={step}: "
-                + ", ".join(non_finite_gradients[:8])
-            )
-        torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
-        optimizer.step()
-        if step == 1 or step == args.steps or step % args.log_every == 0:
-            row = {"seed": seed, "variant": variant.name, "step": step, "axis": axis, "severity": severity, **logs}
-            history.append(row)
-            print(
-                f"[{seed}:{variant.name}] {step:04d}/{args.steps} {axis} s={severity:.3f} "
-                f"loss={logs['loss']:.4f} cvd={logs['L_cvd']:.4f}",
-                flush=True,
-            )
+            if not torch.isfinite(loss):
+                raise FloatingPointError(
+                    f"Non-finite loss at seed={seed}, variant={variant.name}, step={step}: {logs}"
+                )
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            non_finite_gradients = [
+                name for name, parameter in model.named_parameters()
+                if parameter.grad is not None and not torch.isfinite(parameter.grad).all()
+            ]
+            if non_finite_gradients:
+                raise FloatingPointError(
+                    f"Non-finite gradients at seed={seed}, variant={variant.name}, step={step}: "
+                    + ", ".join(non_finite_gradients[:8])
+                )
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+            optimizer.step()
+            if writer is not None:
+                for key, value in logs.items():
+                    writer.add_scalar(f"train/{key}", value, step)
+                writer.add_scalar("train/learning_rate", optimizer.param_groups[0]["lr"], step)
+            progress.set_postfix(loss=f"{logs['loss']:.4f}", cvd=f"{logs['L_cvd']:.4f}", refresh=False)
+            if step == 1 or step == args.steps or step % args.log_every == 0:
+                row = {"seed": seed, "variant": variant.name, "step": step, "axis": axis, "severity": severity, **logs}
+                history.append(row)
+                tqdm.write(
+                    f"[{seed}:{variant.name}] {step:04d}/{args.steps} {axis} s={severity:.3f} "
+                    f"loss={logs['loss']:.4f} cvd={logs['L_cvd']:.4f}",
+                )
     synchronize(device)
     return history, time.perf_counter() - started
 
@@ -264,6 +280,7 @@ def train_model(
 @torch.no_grad()
 def evaluate_variant(
     *,
+    no_progress: bool = False,
     name: str,
     seed: int,
     loader: DataLoader,
@@ -293,7 +310,10 @@ def evaluate_variant(
     for axis in axes:
         for severity in severities:
             saved = 0
-            for inp, image_names in loader:
+            for inp, image_names in tqdm(
+                loader, desc=f"Eval {name} {dataset_name} {axis} s={severity:g} {metric_simulator}",
+                unit="batch", dynamic_ncols=True, disable=True if no_progress else None, leave=False,
+            ):
                 inp = inp.to(device)
                 mask = confusion_mask(inp, axis, severity, mask_simulator).detach()
                 synchronize(device)
@@ -472,6 +492,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log-every", type=int, default=10)
     parser.add_argument("--sample-images", type=int, default=1)
     parser.add_argument("--save-checkpoints", action="store_true")
+    parser.add_argument("--no-progress", action="store_true", help="Disable training and evaluation progress bars.")
+    parser.add_argument("--no-tensorboard", action="store_true", help="Disable TensorBoard training scalar logs.")
     parser.add_argument(
         "--condition-probes",
         action="store_true",
@@ -487,6 +509,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.log_every < 1:
+        raise ValueError("--log-every must be positive")
     for severity in [*args.train_severities, *args.eval_severities, *args.interpolation_severities, *args.stress_severities]:
         if not 0.0 < severity <= 1.0:
             raise ValueError(f"All experiment severities must be in (0, 1], got {severity}")
@@ -530,6 +554,7 @@ def main() -> None:
         eval_loader = make_loader(dataset, eval_indices, args.batch_size, device, args.num_workers, shuffle=False, seed=seed)
         for baseline_name, transform in (("identity", identity_transform), ("error_compensation", error_compensation_transform)):
             all_rows.extend(evaluate_variant(
+                no_progress=args.no_progress,
                 name=baseline_name,
                 seed=seed,
                 loader=eval_loader,
@@ -544,6 +569,7 @@ def main() -> None:
                 sample_images=args.sample_images if seed_number == 0 and baseline_name in {"identity", "error_compensation"} else 0,
             ))
             all_rows.extend(evaluate_variant(
+                no_progress=args.no_progress,
                 name=baseline_name,
                 seed=seed,
                 loader=eval_loader,
@@ -569,6 +595,7 @@ def main() -> None:
                         seed=seed,
                     )
                     all_rows.extend(evaluate_variant(
+                        no_progress=args.no_progress,
                         name=baseline_name,
                         seed=seed,
                         loader=stress_loader,
@@ -591,6 +618,7 @@ def main() -> None:
             history_rows.extend(history)
             params = parameter_count(model)
             all_rows.extend(evaluate_variant(
+                no_progress=args.no_progress,
                 name=variant_name,
                 seed=seed,
                 loader=eval_loader,
@@ -612,6 +640,7 @@ def main() -> None:
                     ("ours_full_fixed_s05", "fixed_s05"),
                 ):
                     all_rows.extend(evaluate_variant(
+                        no_progress=args.no_progress,
                         name=probe_name,
                         seed=seed,
                         loader=eval_loader,
@@ -628,6 +657,7 @@ def main() -> None:
                     ))
             # Second-model endpoint sensitivity is intentionally endpoint-only.
             all_rows.extend(evaluate_variant(
+                no_progress=args.no_progress,
                 name=variant_name,
                 seed=seed,
                 loader=eval_loader,
@@ -647,6 +677,7 @@ def main() -> None:
                     stress_dataset = ImagePathDataset(args.stress_data, args.size, paths=paths)
                     stress_loader = make_loader(stress_dataset, list(range(len(stress_dataset))), args.batch_size, device, args.num_workers, shuffle=False, seed=seed)
                     all_rows.extend(evaluate_variant(
+                        no_progress=args.no_progress,
                         name=variant_name,
                         seed=seed,
                         loader=stress_loader,

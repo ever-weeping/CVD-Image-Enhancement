@@ -6,3 +6,5 @@ scipy
 scikit-image
 pandas
 matplotlib
+tqdm
+tensorboard
