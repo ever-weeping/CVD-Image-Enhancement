@@ -1,0 +1,33 @@
+# macOS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Datasets and experiment outputs (kept on disk / server ext_disk, never in git)
+val2017/
+dataset_gen/
+runs/
+results/
+artifacts/
+*.pt
+*.pth
+*.ckpt
+
+# Copyrighted or derived binaries must not live in this public repository
+# (paper PDFs, COCO-derived images). Keep them on local disk only.
+*.pdf
+*.png
+*.jpg
+*.jpeg
+
+# Temporary files
+*.tmp
+*.log
