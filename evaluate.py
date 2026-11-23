@@ -130,16 +130,16 @@ def main():
     write_dict_rows(a.out / 'summary.csv', summary)
     lines = ['# 作者方法复现评估（论文指标）', '',
              f'模拟器 {a.simulator}，程度 {a.severity}；256×256；split={a.split}。',
-             'TCC 在 CVD 模拟后的 Lab 空间计算（Eq.10）；SSIM 为自然度（Eq.6/7）；CD 为 λ=0 色度差（Eq.11）。',
-             'TCC 越高对比越强，SSIM 越高越自然，CD 越低颜色改变越小；需联合判读。',
-             f'色度保真 = 1 − CD/{CD_SRGB_MAX}（sRGB 色域色度平面直径，本协议明示的展示惯例；'
-             '单调线性映射，不改变任何比较方向；CD 原值仍是 Eq.11 报告量）。', '',
-             '|数据|类型|模拟器|TCC输入|TCC输出|TCC增益↑|SSIM↑|CD↓|色度保真↑|',
-             '|---|---|---|---:|---:|---:|---:|---:|---:|']
+             'TCC 在 CVD 模拟后的 Lab 空间计算（Eq.10）；SSIM 为自然度（Eq.6/7）；'
+             f'色度保真 = 1 − λ=0 色度差CD/{CD_SRGB_MAX}（sRGB 色域色度平面直径，kornia 实测）。',
+             '表格列统一为越高越好（2026-11-23 惯例）：TCC增益↑ SSIM↑ 色度保真↑；需联合判读。'
+             f'CD 原值仍存于 per_image_metrics.csv 的 cd_mean 列（Eq.11 报告量，供溯源）。', '',
+             '|数据|类型|模拟器|TCC输入|TCC输出|TCC增益↑|SSIM↑|色度保真↑|',
+             '|---|---|---|---:|---:|---:|---:|---:|']
     for r in summary:
         lines.append(f"|{r['dataset']}|{r['axis']}|{r['simulator']}|{r['tcc_input_sim']:.4f}|"
                      f"{r['tcc_output_sim']:.4f}|{r['tcc_gain']:.4f}|{r['ssim_naturalness']:.4f}|"
-                     f"{r['cd_mean']:.4f}|{r['cd_fidelity']:.4f}|")
+                     f"{r['cd_fidelity']:.4f}|")
     lines += ['', '逐图结果见 per_image_metrics.csv；样图见 samples/。',
               '单 seed、固定预算的适配复现，不等同论文表格数值。']
     (a.out / 'REPORT_zh.md').write_text('\n'.join(lines) + '\n')
