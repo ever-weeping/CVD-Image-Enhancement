@@ -32,3 +32,22 @@ c74dcae3feeb50925917ab0df4d6e38bf22dd0f6984605c9074bc9f86b46ac6b  runs/no_mask_a
 
 The qualitative figure uses the deterministic `_00` sample saved for the
 protan and deutan endpoints; it is not selected by metric performance.
+
+## 2026-11-23 provenance repair (this section supersedes the commit table above)
+
+- The three "Git commit at start" hashes above no longer exist in this
+  repository's history (history was truncated during an earlier re-initialization;
+  only four commits survived). They are kept verbatim as a historical note.
+- The primary content anchor going forward is `archive/pilot_runs_202607/`
+  (committed in git, synced via GitHub, identical on mac/server), with
+  `archive/pilot_runs_202607/MANIFEST.sha256` covering every file. All three
+  cited SHA-256 values above were re-verified against the archived files on
+  2026-11-23 and match.
+- Correction: in the manifest block above, the labels for
+  `paired_statistics.csv` and `summary_overall.csv` were swapped for
+  `pilot_v2_20260720_fixed` (actual: paired=35c60f43…, summary_overall=6bd68f92…);
+  the file contents themselves are unchanged.
+- Two additional pre-reproduction runs (`coco_stage1_20260930_083614`,
+  `deutan_s1_1000_20261001`) were not cited by any document but existed only on
+  the mac disk; their csv/json outputs are archived in the same folder.
+  `run.log`/`samples/*.png` remain on disk only (gitignored; public-repo policy).

@@ -1,0 +1,65 @@
+{
+  "data": "/Users/mahai/毕业材料/小论文/code/val2017",
+  "stress_data": null,
+  "out": "/Users/mahai/毕业材料/小论文/code/runs/condition_probe_20260720",
+  "size": 64,
+  "train_images": 128,
+  "eval_images": 24,
+  "stress_images_per_axis": 24,
+  "batch_size": 4,
+  "steps": 40,
+  "width": 12,
+  "lr": 0.0004,
+  "weight_decay": 0.0001,
+  "grad_clip": 1.0,
+  "seeds": [
+    7,
+    19
+  ],
+  "split_seed": 2026,
+  "axes": [
+    "protan",
+    "deutan"
+  ],
+  "train_severities": [
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "eval_severities": [
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "interpolation_severities": [
+    0.375,
+    0.625,
+    0.875
+  ],
+  "stress_severities": [
+    0.5,
+    1.0
+  ],
+  "train_simulator": "machado",
+  "robustness_simulator": "brettel",
+  "variants": [
+    "ours_full"
+  ],
+  "device": "mps",
+  "num_workers": 0,
+  "log_every": 10,
+  "sample_images": 0,
+  "save_checkpoints": false,
+  "condition_probes": true,
+  "bootstrap_samples": 2000,
+  "w_structure": 1.0,
+  "w_fidelity": 1.5,
+  "w_cvd": 1.8,
+  "w_decouple": 0.03,
+  "device_resolved": "mps",
+  "git_commit_at_start": "5bbb24cd125970e53bcb74ddcc03a9e5ad37b4f1",
+  "torch_version": "2.4.1",
+  "terminology_note": "0<s<1 is a simulated anomaly condition; s=1 is a simulated dichromat endpoint; s is not a clinical grade."
+}

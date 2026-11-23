@@ -1,0 +1,67 @@
+{
+  "data": "/media/ext_disk/mahai/xiaolunwen_data/val2017",
+  "stress_data": "/media/ext_disk/mahai/xiaolunwen_data/stress_dataset",
+  "out": "/home/mahai/PPWorkspace/CVD-Image-Enhancement/code/runs/coco_stage1_20260930_083614",
+  "size": 128,
+  "train_images": 1000,
+  "eval_images": 128,
+  "stress_images_per_axis": 24,
+  "batch_size": 8,
+  "steps": 1000,
+  "width": 12,
+  "lr": 0.0004,
+  "weight_decay": 0.0001,
+  "grad_clip": 1.0,
+  "seeds": [
+    7
+  ],
+  "split_seed": 2026,
+  "axes": [
+    "protan",
+    "deutan"
+  ],
+  "train_severities": [
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "eval_severities": [
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "interpolation_severities": [
+    0.375,
+    0.625,
+    0.875
+  ],
+  "stress_severities": [
+    0.5,
+    1.0
+  ],
+  "train_simulator": "machado",
+  "robustness_simulator": "brettel",
+  "variants": [
+    "baseline",
+    "ours_full"
+  ],
+  "device": "cuda:0",
+  "num_workers": 2,
+  "log_every": 20,
+  "sample_images": 2,
+  "save_checkpoints": true,
+  "no_progress": false,
+  "no_tensorboard": false,
+  "condition_probes": true,
+  "bootstrap_samples": 2000,
+  "w_structure": 1.0,
+  "w_fidelity": 1.5,
+  "w_cvd": 1.8,
+  "w_decouple": 0.03,
+  "device_resolved": "cuda:0",
+  "git_commit_at_start": "d544ade0c179444fb5e4f608d071d2e4e611eb00",
+  "torch_version": "2.5.1+cu121",
+  "terminology_note": "0<s<1 is a simulated anomaly condition; s=1 is a simulated dichromat endpoint; s is not a clinical grade."
+}
