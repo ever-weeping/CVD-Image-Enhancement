@@ -85,6 +85,8 @@ python-colour 惯例(论文正文用 Δλ nm),s=1.0 即论文二色端点矩阵,
 5. 本机编辑 → GitHub → 服务器 pull;禁止服务器直接改码不提交。
 6. Brettel/Viénot 第二模型互检的独立性有限:Machado 的 0.96 系数以 Brettel 曲面
    为参考校准、作者自评二色端点 "equivalent to Brettel";写作不得夸大互检力度。
+7. **时间维度不作贡献声明**(用户 2026-11-23 拍板):改进不 claim 实时/加速;
+   耗时仅作背景与基线口径辩护,severity 条件化卖点不含"实时"半边。
 
 ## α 模型族数据(2026-11-23,自然图 validation 1,753 张,逐格见各 eval REPORT_zh.md)
 
