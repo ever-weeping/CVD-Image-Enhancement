@@ -12,7 +12,8 @@ mkdir -p "$OUT"
 trap 'echo "FAILED $AXIS alpha$ALPHA $(date -Is)" > "$OUT/STATUS.txt"' ERR
 echo "TRAIN $AXIS alpha$ALPHA $(date -Is)" > "$OUT/STATUS.txt"
 CUDA_VISIBLE_DEVICES="$GPU" "$PY" train.py --axis "$AXIS" --alpha "$ALPHA" \
-    --init-from "$INIT" --out "$RUN" > "$OUT/train_${AXIS}_alpha${ALPHA}.log" 2>&1
+    --sim-train author --init-from "$INIT" --out "$RUN" \
+    > "$OUT/train_${AXIS}_alpha${ALPHA}.log" 2>&1
 echo "EVAL $AXIS alpha$ALPHA $(date -Is)" >> "$OUT/STATUS.txt"
 CUDA_VISIBLE_DEVICES="$GPU" "$PY" evaluate.py --axis "$AXIS" \
     --checkpoint "$RUN/final.pt" --split validation \

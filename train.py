@@ -1,7 +1,9 @@
-"""Author-method reproduction training (Chen et al., NCAA 2024).
+"""Own-method training on the verified author reproduction (Chen et al., NCAA 2024).
 
-Unsupervised protocol: alpha=0 pretraining (contrast only), then finetuning
-with the paper's naturalness weight alpha (default 0.5). Adam lr=2e-4,
+Default simulation convention is `linearized` (own method, promoted 2026-11-23;
+see docs/METHOD_zh.md); pass `--sim-train author` for reproduction/ablation
+controls. Unsupervised protocol: alpha=0 pretraining (contrast only), then
+finetuning with the naturalness weight alpha (default 0.5). Adam lr=2e-4,
 betas=(0.5,0.999), batch 4, 256x256, one axis-specific model per run.
 Self-contained: data pipeline in data.py, network in models/author.py
 (released author code under vendor/), loss in losses/author.py.
@@ -49,13 +51,14 @@ def main():
     p.add_argument('--init-from', type=Path, default=None,
                    help='Start from a shared alpha=0 pretrain checkpoint (model+optimizer+rng); '
                         'runs only the --finetune-steps phase at --alpha')
-    p.add_argument('--sim-train', choices=['author', 'linearized'], default='author',
+    p.add_argument('--sim-train', choices=['author', 'linearized'], default='linearized',
                    help='Training-time CVD simulation convention: author = matrix on encoded '
-                        'RGB (faithful reproduction), linearized = sRGB decode/encode around '
-                        'the matrix (matches evaluate.py); ablation decided 2026-11-23')
+                        'RGB (faithful reproduction control), linearized = sRGB decode/encode around '
+                        'the matrix (own method default, matches evaluate.py). Promoted 2026-11-23.')
     a = p.parse_args()
     if a.out is None:
-        a.out = paths.RUN_ROOT / f'author_{a.axis}_alpha{a.alpha:g}'
+        prefix = 'author' if a.sim_train == 'author' else 'method'
+        a.out = paths.RUN_ROOT / f'{prefix}_{a.axis}_alpha{a.alpha:g}'
     if min(a.pretrain_steps, a.finetune_steps) < 0 or a.pretrain_steps + a.finetune_steps < 1:
         raise ValueError('Invalid steps')
     torch.set_num_threads(4)
@@ -74,7 +77,8 @@ def main():
                   author_commit='07271c5bc0f89068e8fc8cfa57cec0a9b8800549',
                   severity=1., size=256, synthetic_ratio=.5, lr=.0002, betas=[.5, .999],
                   dataset_counts={k: len(v) for k, v in datasets.items()},
-                  protocol='author-code reproduction; fixed manifest; alpha=0 then alpha finetune')
+                  protocol=f'{a.sim_train}-sim recoloring training; fixed manifest; '
+                           'alpha=0 pretrain then alpha finetune')
     a.out.mkdir(parents=True, exist_ok=True)
     if (a.out / 'config.json').exists() and not a.resume:
         raise ValueError('Run exists; use a fresh directory or --resume')

@@ -9,7 +9,8 @@ PY="${PY:-/home/mahai/miniconda3/envs/image_enhance/bin/python}"
 mkdir -p "$OUT"
 trap 'echo "FAILED $AXIS $(date -Is)" > "$OUT/STATUS.txt"' ERR
 echo "TRAIN $AXIS $(date -Is)" > "$OUT/STATUS.txt"
-CUDA_VISIBLE_DEVICES="$GPU" "$PY" train.py --axis "$AXIS" --alpha 0.5 $EXTRA \
+CUDA_VISIBLE_DEVICES="$GPU" "$PY" train.py --axis "$AXIS" --alpha 0.5 \
+    --sim-train author $EXTRA \
     --out "$OUT/author_${AXIS}_alpha0.5" > "$OUT/train_${AXIS}.log" 2>&1
 echo "EVAL $AXIS $(date -Is)" >> "$OUT/STATUS.txt"
 CUDA_VISIBLE_DEVICES="$GPU" "$PY" evaluate.py --axis "$AXIS" \
