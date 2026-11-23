@@ -1,0 +1,16 @@
+{
+  "url": "https://github.com/Ligeng-c/CVD_swin",
+  "commit": "07271c5bc0f89068e8fc8cfa57cec0a9b8800549",
+  "original_files": {
+    "datasets.py": "875d7c45f90b0deedab46d42e649210884704cbb81836b07035c3d85cae00ac3",
+    "cvd_function.py": "338a080e646668561b1ada2539b23419cd30a20e77f7b3a00d0778827c6b01e1",
+    "discrimintor_trs.py": "65af66b5b3b12bc3e4e35fc318bc11c6eca6d85ee2d0c20228cf5897db81fa85",
+    "train.py": "963aefd7b1b2a48dee338d04ffb7037c4e085e2007b68f61caaa33d14ba24548",
+    "contrast.py": "9ce028f5482493483bc592457cca84a8360bd8731cf3e0bd02260117577967c5"
+  },
+  "changes": {
+    "vendor/discrimintor_trs.py": "Only timm import replaced by compat import; generator class unchanged.",
+    "author_ssim.py": "SSIMLoss copied from official train.py.",
+    "author_method.py": "Equivalent loss computation, direct RGB simulation, fixed types and severity."
+  }
+}

@@ -1,0 +1,7 @@
+# Install into the existing image_enhance conda environment (torch already present).
+kornia==0.6.12
+colour-science>=0.4
+numpy
+pillow
+tqdm
+tensorboard
