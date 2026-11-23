@@ -2,7 +2,7 @@ from PIL import Image
 import numpy as np
 from daltonlens import simulate
 
-“”“
+"""
 daltonlens 是一个用于模拟色盲和色弱的库，它使用 Machado 2009 矩阵来模拟色盲和色弱。
 它支持以下几种色盲和色弱：
 - 绿色盲/绿色弱 (Deutan)
@@ -11,7 +11,7 @@ daltonlens 是一个用于模拟色盲和色弱的库，它使用 Machado 2009 �
 - 绿色盲/绿色弱 (Deutan)
 - 红色盲/红色弱 (Protan)
 - 蓝色盲/蓝色弱 (Tritan)
-”“”
+"""
 
 # 1. 读取你想模拟的图片，并转换为 NumPy 数组 (RGB 格式)
 img = Image.open("data/ sample.png").convert("RGB")

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import random
 import subprocess
@@ -202,12 +203,16 @@ def train_model(
     device: torch.device,
     args: argparse.Namespace,
     seed: int,
+    synthetic_loaders: Optional[dict[str, DataLoader]] = None,
 ) -> tuple[list[dict], float]:
     model.train()
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     schedule = [(axis, severity) for axis in args.axes for severity in args.train_severities]
     condition_rng = random.Random(seed + 173)
     iterator = iter(loader)
+    source_rng = random.Random(seed + 719)
+    synthetic_iterators = {}
+    sampling_counts = defaultdict(lambda: {"batches": 0, "images": 0})
     history: list[dict] = []
     started = time.perf_counter()
     with ExitStack() as stack:
@@ -220,13 +225,28 @@ def train_model(
             unit="step", dynamic_ncols=True, disable=args.no_progress,
         ))
         for step in progress:
-            try:
-                inp, _ = next(iterator)
-            except StopIteration:
-                iterator = iter(loader)
-                inp, _ = next(iterator)
-            inp = inp.to(device)
             axis, severity = schedule[condition_rng.randrange(len(schedule))]
+            source = "natural"
+            if synthetic_loaders and source_rng.random() < args.synthetic_ratio:
+                source = "synthetic"
+                if axis not in synthetic_iterators:
+                    synthetic_iterators[axis] = iter(synthetic_loaders[axis])
+                try:
+                    inp, _ = next(synthetic_iterators[axis])
+                except StopIteration:
+                    synthetic_iterators[axis] = iter(synthetic_loaders[axis])
+                    inp, _ = next(synthetic_iterators[axis])
+            else:
+                try:
+                    inp, _ = next(iterator)
+                except StopIteration:
+                    iterator = iter(loader)
+                    inp, _ = next(iterator)
+            inp = inp.to(device)
+            if synthetic_loaders:
+                group = f"{source}/{axis}"
+                sampling_counts[group]["batches"] += 1
+                sampling_counts[group]["images"] += len(inp)
             mask = confusion_mask(inp, axis, severity, args.train_simulator).detach()
             condition = condition_vector(axis, severity, inp.shape[0], dtype=inp.dtype, device=device)
             out, features, _ = model(inp, mask, condition)
@@ -261,6 +281,19 @@ def train_model(
                 )
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
             optimizer.step()
+            checkpoint_every = getattr(args, "checkpoint_every", 0)
+            if checkpoint_every and step % checkpoint_every == 0:
+                checkpoint_dir = args.out / "checkpoints"
+                checkpoint_dir.mkdir(parents=True, exist_ok=True)
+                checkpoint = dict(model=model.state_dict(), variant=variant.name,
+                                  seed=seed, width=args.width, step=step)
+                if getattr(args, "fixed_manifest", None):
+                    checkpoint["manifest_sha256"] = hashlib.sha256(args.fixed_manifest.read_bytes()).hexdigest()
+                temporary = checkpoint_dir / f"{variant.name}_seed{seed}_latest.pt.tmp"
+                torch.save(checkpoint, temporary)
+                temporary.replace(checkpoint_dir / f"{variant.name}_seed{seed}_latest.pt")
+            if synthetic_loaders:
+                logs["synthetic_batch"] = float(source == "synthetic")
             if writer is not None:
                 for key, value in logs.items():
                     writer.add_scalar(f"train/{key}", value, step)
@@ -274,7 +307,12 @@ def train_model(
                     f"loss={logs['loss']:.4f} cvd={logs['L_cvd']:.4f}",
                 )
     synchronize(device)
-    return history, time.perf_counter() - started
+    elapsed = time.perf_counter() - started
+    if synthetic_loaders:
+        (args.out / f"sampling_{variant.name}_seed{seed}.json").write_text(
+            json.dumps(dict(sampling_counts), indent=2) + "\n", encoding="utf-8"
+        )
+    return history, elapsed
 
 
 @torch.no_grad()
@@ -399,10 +437,10 @@ def holm_adjust(p_values: Sequence[float]) -> list[float]:
     return adjusted.tolist()
 
 
-def paired_statistics(rows: Sequence[dict], bootstrap_samples: int, seed: int) -> list[dict]:
+def paired_statistics(rows: Sequence[dict], bootstrap_samples: int, seed: int, dataset_name: str = "coco_val2017", simulator: str = "machado") -> list[dict]:
     filtered = [
         row for row in rows
-        if row["dataset"] == "coco_val2017" and row["metric_simulator"] == "machado"
+        if row["dataset"] == dataset_name and row["metric_simulator"] == simulator
     ]
     comparisons = ["baseline", "error_compensation"]
     metrics = ["cvd_contrast_gain", "delta_e00_mean", "ssim_luma"]
@@ -464,6 +502,12 @@ def git_commit() -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--fixed-manifest", type=Path, help="Use explicit natural/synthetic train/validation/test CSV; never re-split.")
+    parser.add_argument("--synthetic-root", type=Path)
+    parser.add_argument("--synthetic-ratio", type=float, default=0.5, help="Probability of an axis-matched synthetic training batch.")
+    parser.add_argument("--fixed-eval-split", choices=["validation", "test"], default="validation")
+    parser.add_argument("--fixed-eval-limit", type=int, default=0, help="Per evaluation group limit; 0 means all, chosen deterministically.")
+    parser.add_argument("--eval-only-checkpoint", type=Path, help="Fixed-manifest mode only; required for test split.")
     parser.add_argument("--data", type=Path, default=Path("val2017"))
     parser.add_argument("--stress-data", type=Path)
     parser.add_argument("--out", type=Path, default=Path("runs/pilot_v2"))
@@ -492,6 +536,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log-every", type=int, default=10)
     parser.add_argument("--sample-images", type=int, default=1)
     parser.add_argument("--save-checkpoints", action="store_true")
+    parser.add_argument("--checkpoint-every", type=int, default=0, help="Save latest intermediate weights every N steps (0 disables; not optimizer resume).")
     parser.add_argument("--no-progress", action="store_true", help="Disable training and evaluation progress bars.")
     parser.add_argument("--no-tensorboard", action="store_true", help="Disable TensorBoard training scalar logs.")
     parser.add_argument(
@@ -518,6 +563,14 @@ def main() -> None:
         if name not in VARIANTS:
             raise KeyError(f"Unknown variant {name}; choose from {sorted(VARIANTS)}")
 
+    if args.fixed_manifest:
+        from fixed_data import run_fixed
+        run_fixed(args)
+        return
+    if args.synthetic_root or args.eval_only_checkpoint:
+        raise ValueError("Synthetic mixing and checkpoint evaluation require --fixed-manifest")
+    if all((args.data / split).is_dir() for split in ("train", "validation", "test")):
+        raise ValueError("Fixed-split root detected: use --fixed-manifest instead of recursively pooling all splits")
     device = resolve_device(args.device)
     args.out.mkdir(parents=True, exist_ok=True)
     dataset = ImagePathDataset(args.data, args.size)
