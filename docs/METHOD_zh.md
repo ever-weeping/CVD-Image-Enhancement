@@ -129,7 +129,10 @@ linearized 口径 = `ablation_linearized_20261123`(α0.5)+ `method_alpha_lineari
 
 - [x] linearized 口径 α 分支 0.25/0.75 × 双轴(2026-11-23 完成;protan α0.25 经
   seed7/seed11 双 seed 定性为 seed 特异散度,seed11 入表);
-- [ ] 同集基线对照(Hassan 全局 / Zhu 原法,至少指标同集可比);
+- [ ] 同集基线对照(名单已定:Gillooly γ/线性双版 + Zhou24 自实现 + Hassan19 自实现;
+  Zhu22/19 退 related work)。Zhou24 自实现自设自由度三项:k-means k、LUT 步长/RGB 裁剪、
+  邻域窗口半径(三篇原文均未给)→ 自设 + 敏感性检查 + 论文声明;配对集 |P|=2N 与 21 点网格
+  有出处(Wang21/Huang22);光域自选线性光并声明;
 - [ ] CCPR 阈值校准(FILTER_METHOD_zh.md 遗留);
 - [ ] 第二改进点立项:severity 条件化 / 个体化校准(当前 s≡1.0 二色端点);
 - [ ] 论文数据节按 v3 清单与线性化口径重写;
