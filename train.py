@@ -94,7 +94,11 @@ def main():
         if not a.init_from.is_file():
             raise ValueError(f'--init-from checkpoint missing: {a.init_from}')
         ck = torch.load(a.init_from, map_location=device, weights_only=False)
-        for key in ['manifest_sha256', 'axis', 'batch_size', 'seed']:
+        # NOTE: 'seed' is deliberately NOT compared: seeding a branch from the
+        # same boundary checkpoint with a different --seed is the intended way
+        # to probe seed variance (restored rng continues the boundary stream;
+        # only DataLoader order changes). Mismatches are recorded below.
+        for key in ['manifest_sha256', 'axis', 'batch_size']:
             if ck['config'][key] != config[key]:
                 raise ValueError(f'init-from mismatch: {key}')
         if ck['step'] != ck['config']['pretrain_steps']:
@@ -109,8 +113,9 @@ def main():
         config['pretrain_steps'] = start_step
         config['init_from'] = str(a.init_from)
         config['init_from_sha256'] = hashlib.sha256(a.init_from.read_bytes()).hexdigest()
+        config['init_from_seed'] = ck['config'].get('seed')
         config['init_note'] = ('Branch run from shared alpha=0 pretrain: weights/optimizer/rng '
-                               'restored at the boundary; data order restarts from seed.')
+                               'restored at the boundary; data order restarts from this run seed.')
     if a.resume:
         ck = torch.load(a.out / 'latest.pt', map_location=device, weights_only=False)
         for key in ['manifest_sha256', 'axis', 'pretrain_steps', 'finetune_steps', 'alpha', 'batch_size', 'seed']:

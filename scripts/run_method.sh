@@ -3,21 +3,24 @@
 # Full two-phase training (alpha=0 pretrain + finetune) unless an init checkpoint
 # (a linearized pretrained_alpha0.pt) is given, then finetune-only branch.
 # Usage: bash scripts/run_method.sh <protan|deutan> <alpha> <gpu_id> <out_root> [init_from]
+# Env: SEED (default 7) changes the TRAINING seed only; evaluation always runs
+# at its own default seed so metric cells stay comparable across the family.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 AXIS="$1"; ALPHA="$2"; GPU="$3"; OUT="$4"; INIT="${5:-}"
+SEED="${SEED:-7}"
 PY="${PY:-/home/mahai/miniconda3/envs/image_enhance/bin/python}"
 RUN="$OUT/method_${AXIS}_alpha${ALPHA}"
 mkdir -p "$OUT"
-trap 'echo "FAILED $AXIS alpha$ALPHA $(date -Is)" > "$OUT/STATUS.txt"' ERR
-echo "TRAIN $AXIS alpha$ALPHA $(date -Is)" > "$OUT/STATUS.txt"
+trap 'echo "FAILED $AXIS alpha$ALPHA seed$SEED $(date -Is)" > "$OUT/STATUS.txt"' ERR
+echo "TRAIN $AXIS alpha$ALPHA seed$SEED $(date -Is)" > "$OUT/STATUS.txt"
 if [ -n "$INIT" ]; then
     CUDA_VISIBLE_DEVICES="$GPU" "$PY" train.py --axis "$AXIS" --alpha "$ALPHA" \
-        --sim-train linearized --init-from "$INIT" --out "$RUN" \
+        --sim-train linearized --seed "$SEED" --init-from "$INIT" --out "$RUN" \
         > "$OUT/train_${AXIS}_alpha${ALPHA}.log" 2>&1
 else
     CUDA_VISIBLE_DEVICES="$GPU" "$PY" train.py --axis "$AXIS" --alpha "$ALPHA" \
-        --sim-train linearized --out "$RUN" \
+        --sim-train linearized --seed "$SEED" --out "$RUN" \
         > "$OUT/train_${AXIS}_alpha${ALPHA}.log" 2>&1
 fi
 echo "EVAL $AXIS alpha$ALPHA $(date -Is)" >> "$OUT/STATUS.txt"
