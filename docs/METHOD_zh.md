@@ -24,9 +24,9 @@
 | 口径 | 轴 | TCC 增益 | CD | 色度保真 1−CD/252.7 | SSIM |
 |---|---|---|---|---|---|
 | author(v3) | deutan | 5.94 | 8.78 | 0.965 | 0.900 |
-| linearized(消融) | deutan | 6.03 | 5.10 | 0.980 | 略升(见 run 目录 REPORT) |
+| linearized(消融) | deutan | 6.0348 | 5.1001 | 0.9798 | 0.9069 |
 | author(v3) | protan | 5.10 | 6.87 | 0.973 | 0.900 |
-| linearized(消融) | protan | 5.02 | 4.94 | 0.980 | 略升(见 run 目录 REPORT) |
+| linearized(消融) | protan | 5.0236 | 4.9377 | 0.9805 | 0.9045 |
 
 补偿增益持平、色度失真约降 30–42%、结构指标不降 → **Pareto 改进**。
 证据目录:服务器 `~/mahai_ext/cvd_runs/ablation_linearized_20261123/<axis>/`。
@@ -36,7 +36,8 @@
 每轴 α ∈ {0.25, 0.5, 0.75}:
 
 - **α=0.5**:即消融那套(full 40k,linearized),已 COMPLETE,直接充当族成员;
-  其 `method_/author_<axis>_alpha0.5/pretrained_alpha0.pt` 是线性化族共享边界权重;
+  共享边界权重 = `ablation_linearized_20261123/<axis>/author_<axis>_alpha0.5/pretrained_alpha0.pt`
+  (357M,step 20000,config 含 sim_train=linearized);
 - **α=0.25 / 0.75**:用 `scripts/run_method.sh ... <init_from=上述 checkpoint>`
   微调分支(步号续写 20001–40000,α 为唯一变量)。
   注意:上一轮 `alpha_branches_20261123` 是 author 口径,只用于复现 Fig.11
