@@ -31,3 +31,6 @@ artifacts/
 # Temporary files
 *.tmp
 *.log
+
+# Baseline upstream code & weights (no license for redistribution; see docs/BASELINES_zh.md Sec.5)
+baselines/_external/
