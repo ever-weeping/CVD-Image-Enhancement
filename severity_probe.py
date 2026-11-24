@@ -231,11 +231,12 @@ def main():
     loader = make_loader(ds, range(len(ds)), a.batch_size, device, a.workers,
                          shuffle=False, seed=a.seed)
     inps, outs = [], []
-    for inp, _ in loader:
-        inp = inp.to(device)
-        out = (model(inp * 2 - 1) + 1) / 2
-        inps.append(inp.cpu())
-        outs.append(out.cpu())
+    with torch.no_grad():
+        for inp, _ in loader:
+            inp = inp.to(device)
+            out = (model(inp * 2 - 1) + 1) / 2
+            inps.append(inp.cpu())
+            outs.append(out.cpu())
     inps = torch.cat(inps)
     outs = torch.cat(outs)
     print(f'{a.axis}: forward done on {inps.shape[0]} images', flush=True)
