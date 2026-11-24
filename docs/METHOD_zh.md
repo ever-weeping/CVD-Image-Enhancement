@@ -135,5 +135,7 @@ linearized 口径 = `ablation_linearized_20261123`(α0.5)+ `method_alpha_lineari
   有出处(Wang21/Huang22);光域自选线性光并声明;
 - [ ] CCPR 阈值校准(FILTER_METHOD_zh.md 遗留);
 - [ ] 第二改进点立项:severity 条件化 / 个体化校准(当前 s≡1.0 二色端点);
+  免训练缩放路线已试并关闭(2026-11-24 预注册探针,见 SEVERITY_SCALING_zh),
+  训练式混档条件化为下一决策点;
 - [ ] 论文数据节按 v3 清单与线性化口径重写;
 - [ ] 定稿后 test 解封一次性出分。
